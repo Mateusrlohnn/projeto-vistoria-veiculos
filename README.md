@@ -45,7 +45,8 @@ Ver pipeline detalhado em `docs/proposta.md`, seção 4.
 ## 6. Conjunto ou origem das imagens
 
 - 20 a 50 imagens de veículos com avarias (arranhões, amassados),
-  selecionadas no Kaggle e/ou Roboflow — em `images/input/`.
+  coletadas manualmente via pesquisa no Google Imagens, para uso
+  exclusivamente educacional — em `images/input/`.
 - Dataset público **CarDD** como candidato para ampliar o conjunto em
   M2/M3 (licença Flickr/Shutterstock — ver `docs/proposta.md`).
 

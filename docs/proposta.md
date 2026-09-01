@@ -114,10 +114,10 @@ aberto:
 ## 5. Imagens e dados
 
 - **Origem 1 — Conjunto inicial (M1):** 20 a 50 imagens de veículos com
-  avarias (arranhões, amassados), selecionadas em datasets públicos no
-  Kaggle e/ou Roboflow. Fonte exata, licença e link de cada dataset
-  utilizado serão registrados aqui conforme as imagens forem selecionadas
-  e adicionadas em `images/input/`.
+  avarias (arranhões, amassados), coletadas manualmente via pesquisa no
+  Google Imagens, para uso exclusivamente educacional neste projeto (sem
+  fins comerciais e sem redistribuição fora deste contexto acadêmico) —
+  adicionadas em `images/input/`.
 - **Origem 2 — CarDD (Car Damage Detection Dataset):** dataset público mais
   amplo (4.000 imagens de alta resolução, mais de 9.000 instâncias anotadas
   de seis tipos de dano — risco, amassado, trinca, vidro quebrado, pneu
