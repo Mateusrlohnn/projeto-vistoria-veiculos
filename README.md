@@ -92,7 +92,7 @@ pip install -r requirements.txt
 
 ## 11. Vídeo da M1
 
-[Link para o vídeo não listado no YouTube] — a adicionar.
+[https://youtu.be/IxA_tRpA2tM](https://youtu.be/IxA_tRpA2tM)
 
 ## 12. Documentação adicional
 
