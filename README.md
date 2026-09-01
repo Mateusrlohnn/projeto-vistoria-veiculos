@@ -1,25 +1,22 @@
-# Vistoria Automática de Veículos — Detecção de Danos Antes/Depois
+# Vistoria Automática de Veículos — Detecção de Avarias na Lataria
 
 > Projeto Aplicado Longitudinal — Disciplina de Processamento de Imagens (PDI)
 > Etapa atual: **M1**
 
-## 1. Integrantes
+## 1. Integrante
 
-- [Nome completo 1] — [usuário GitHub]
-- [Nome completo 2] — [usuário GitHub]
-- [Nome completo 3] — [usuário GitHub]
+- Mateus Rachadel Lohn — [usuário GitHub]
 
 ## 2. Problema investigado
 
-Locadoras de veículos precisam comparar o estado do carro **antes** e **depois**
-de um período de aluguel para identificar danos novos (riscos, amassados,
-trincas) causados durante o uso pelo cliente. Hoje essa comparação costuma ser
-feita manualmente, o que é lento e sujeito a erro humano.
+Locadoras de veículos precisam verificar, no momento da devolução, se o carro
+retornou com alguma avaria (risco, amassado, trinca). Hoje essa verificação
+costuma ser feita manualmente, o que é lento e sujeito a erro humano.
 
 Este projeto investiga como técnicas de Processamento Digital de Imagens podem
-apoiar essa vistoria, comparando um par de fotos do mesmo veículo (antes e
-depois) para destacar regiões onde surgiram divergências visuais compatíveis
-com dano.
+reconhecer e segmentar diretamente padrões de avaria na lataria do veículo a
+partir de uma única foto tirada na inspeção, sem depender de comparação com
+uma foto anterior.
 
 *(Detalhe completo em [`docs/proposta.md`](docs/proposta.md))*
 
@@ -30,34 +27,34 @@ devolução do carro pelo cliente. Ver detalhamento em `docs/proposta.md`.
 
 ## 4. Objetivo geral
 
-Desenvolver um pipeline de PDI capaz de, a partir de um par de imagens
-(antes/depois) do mesmo veículo, indicar se há regiões com divergência visual
-compatível com dano novo, e localizar essas regiões na imagem.
+Desenvolver um pipeline de PDI capaz de, a partir de uma foto do veículo no
+momento da inspeção, localizar regiões com padrão visual compatível com
+avaria (bounding box) e atribuir uma classificação inicial ao tipo de padrão
+encontrado.
 
 *(Objetivos específicos em `docs/proposta.md`, seção 3)*
 
 ## 5. Visão resumida da solução proposta
 
-Pipeline: pré-processamento → alinhamento/registro das duas imagens →
-comparação estrutural (diferença/SSIM) → segmentação das regiões divergentes
-→ filtragem de falsos positivos (sombra, reflexo, sujeira) → resultado
-(mapa de regiões candidatas a dano).
+Pipeline: pré-processamento (escala de cinza + HSV) → filtro de bordas
+(Canny/Sobel) → segmentação das regiões candidatas → destaque do dano
+(bounding box + classificação inicial heurística).
 
 Ver pipeline detalhado em `docs/proposta.md`, seção 4.
 
 ## 6. Conjunto ou origem das imagens
 
-- Dataset público **CarDD** (4.000 imagens de danos anotados, licença
-  Flickr/Shutterstock — ver instruções de obtenção em `docs/proposta.md`).
-- Fotos próprias capturadas pelo grupo (pares antes/depois, com dano
-  simulado de forma reversível) — em `images/input/`.
+- 20 a 50 imagens de veículos com avarias (arranhões, amassados),
+  selecionadas no Kaggle e/ou Roboflow — em `images/input/`.
+- Dataset público **CarDD** como candidato para ampliar o conjunto em
+  M2/M3 (licença Flickr/Shutterstock — ver `docs/proposta.md`).
 
 Detalhes de origem, quantidade e licenciamento em `docs/proposta.md`, seção 5.
 
 ## 7. Estágio atual do projeto
 
 Em andamento (etapa M1): definição do problema, levantamento inicial de
-imagens e primeiros experimentos de alinhamento/diferença.
+imagens e primeiros experimentos de detecção de bordas/segmentação.
 
 ## 8. Organização do repositório
 
@@ -67,7 +64,7 @@ projeto-vistoria-veiculos/
 ├── docs/
 │   └── proposta.md        # proposta técnica detalhada
 ├── images/
-│   ├── input/              # imagens de entrada (antes/depois)
+│   ├── input/              # imagens de entrada (fotos de veículos para inspeção)
 │   └── results/            # resultados de experimentos
 ├── src/                    # código-fonte (quando houver)
 ├── notebooks/               # notebooks exploratórios
@@ -79,8 +76,8 @@ projeto-vistoria-veiculos/
 ## 9. Tecnologias previstas
 
 - Python
-- OpenCV (pré-processamento, alinhamento ORB/SIFT, morfologia)
-- scikit-image (SSIM, métricas de comparação estrutural)
+- OpenCV (pré-processamento, detecção de bordas Canny/Sobel, morfologia)
+- scikit-image (segmentação, métricas de imagem)
 - scikit-learn (etapa futura de classificação de tipo de dano, M2/M3)
 - Jupyter Notebook (experimentos exploratórios)
 
@@ -100,3 +97,9 @@ pip install -r requirements.txt
 
 - [`docs/proposta.md`](docs/proposta.md) — proposta técnica completa
   (problema, contexto, objetivos, pipeline, viabilidade).
+
+## 13. Uso de Inteligência Artificial
+
+Este projeto conta com apoio de ferramentas de Inteligência Artificial
+generativa para estruturação da documentação e organização do repositório,
+com revisão e validação minhas.

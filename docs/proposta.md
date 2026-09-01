@@ -1,27 +1,43 @@
-# Proposta Técnica — Vistoria Automática de Veículos (Antes/Depois)
+# Proposta Técnica — Vistoria Automática de Veículos (Detecção de Avarias na Lataria)
 
 ## 1. Problema
 
 Locadoras de veículos precisam verificar, no momento da devolução do carro,
-se houve algum dano novo (risco, amassado, trinca) causado durante o
-período de uso pelo cliente. Essa comparação é feita hoje majoritariamente
-de forma manual: um funcionário confere visualmente as fotos tiradas antes
-e depois da locação.
+se ele retornou com alguma avaria (risco, amassado, trinca). Essa
+verificação é feita hoje majoritariamente de forma manual: um funcionário
+inspeciona visualmente a lataria do veículo.
+
+A estratégia inicial cogitada para este projeto era comparar pixel a pixel
+duas fotos do mesmo veículo (antes e depois), alinhando-as (ORB/SIFT) e
+calculando a diferença estrutural entre elas. Essa abordagem se mostrou
+frágil como ponto de partida: pequenas variações de ângulo, distância e
+iluminação entre as duas capturas exigem um alinhamento muito preciso para
+não gerar falsos positivos, o que é uma etapa complexa por si só.
+
+A estratégia adotada a partir de agora foca no **reconhecimento e
+segmentação direta de padrões de avaria na lataria do veículo**, a partir de
+uma única fotografia tirada no momento da inspeção, sem depender de um
+alinhamento fino entre duas capturas. Arranhões, amassados e trincas
+produzem padrões visuais característicos (bordas finas e alongadas,
+variações abruptas de brilho/sombra, descontinuidades de textura) que podem
+ser detectados diretamente com técnicas clássicas de PDI (filtros de borda,
+segmentação por cor/textura), sem exigir uma imagem de referência anterior.
 
 Este problema envolve processamento e análise de imagens porque a decisão
-depende de comparar duas imagens do mesmo objeto (o veículo) em momentos
-diferentes, e identificar **divergências visuais localizadas** entre elas —
-uma tarefa de comparação estrutural de imagens, segmentação de regiões e,
-possivelmente, classificação do tipo de divergência encontrada.
+depende de identificar, dentro de uma única imagem, regiões cujos padrões
+de borda, textura e variação de brilho são compatíveis com avaria — uma
+tarefa de detecção de bordas, segmentação de regiões e classificação
+inicial do padrão encontrado.
 
-Situação inicial: duas fotos do mesmo veículo, tiradas em momentos
-diferentes (antes e depois do aluguel), possivelmente com pequenas
-variações de ângulo, distância, iluminação e enquadramento.
+Situação inicial: uma foto do veículo (ou de parte da lataria) tirada no
+momento da inspeção de devolução.
 
-Informação a ser produzida a partir das imagens: (a) se existe alguma
-divergência visual compatível com dano entre as duas fotos; (b) em que
-região da imagem essa divergência está localizada; (c) *(meta futura,
-M2/M3)* que tipo de dano é (risco, amassado, trinca).
+Informação a ser produzida a partir da imagem: (a) localização das regiões
+com padrão visual compatível com avaria (bounding box); (b) uma
+classificação inicial heurística do padrão (ex.: "borda linear destacada =
+possível arranhão"); (c) *(meta futura, M2/M3)* comparação opcional com uma
+foto de referência da retirada do veículo, quando disponível, para reduzir
+falsos positivos.
 
 ## 2. Contexto de aplicação
 
@@ -33,50 +49,56 @@ gestão de frotas que fazem checagens periódicas dos veículos.
 
 ## 3. Objetivo
 
-**Objetivo geral:** dado um par de imagens (antes/depois) do mesmo
-veículo, produzir um mapa das regiões com divergência visual relevante
-entre as duas imagens, indicando candidatos a dano novo.
+**Objetivo geral:** dada uma foto do veículo (ou de parte da lataria) no
+momento da inspeção, produzir um mapa das regiões com padrão visual
+compatível com avaria, indicando sua localização (bounding box) e uma
+classificação inicial do padrão encontrado.
 
 **Objetivos específicos:**
-- Alinhar corretamente as duas imagens, compensando pequenas diferenças
-  de ângulo e posição da câmera.
-- Comparar estruturalmente as imagens alinhadas para localizar regiões
-  divergentes.
-- Filtrar divergências que não correspondem a dano real (sombra, reflexo,
-  sujeira, variação de iluminação).
-- *(Meta para M2/M3)* Classificar o tipo de dano identificado.
+- Pré-processar a imagem (padronizar tamanho, converter para escala de
+  cinza e para o espaço de cor HSV).
+- Aplicar filtros de detecção de bordas (Canny/Sobel) para isolar padrões
+  compatíveis com arranhões e trincas.
+- Segmentar as regiões candidatas a partir das bordas e de variações de
+  brilho/sombra típicas de amassados.
+- Atribuir uma classificação inicial heurística ao padrão encontrado (ex.:
+  borda linear e fina → possível arranhão; região de contraste de
+  brilho/sombra → possível amassado).
+- *(Meta para M2/M3)* Treinar um classificador supervisionado para os
+  tipos de dano e, opcionalmente, comparar com foto de referência da
+  retirada do veículo.
 
 ## 4. Entrada e saída esperadas
 
-**Entrada:** duas imagens do mesmo veículo (mesma região/ângulo aproximado),
-capturadas em momentos diferentes.
+**Entrada:** foto do veículo (ou de parte da lataria) no momento da
+inspeção.
 
-**Saída:** indicação binária de "há divergência relevante?" + localização
-(bounding boxes ou mapa de calor) das regiões candidatas a dano.
+**Saída:** a imagem processada apontando o local exato do dano (bounding
+box) + uma classificação inicial (ex.: "borda linear destacada = possível
+arranhão").
 
 Pipeline conceitual:
 
 ```mermaid
 flowchart LR
-    A1[Imagem "antes"] --> C[Pré-processamento]
-    A2[Imagem "depois"] --> C
-    C --> D[Alinhamento / registro]
-    D --> E[Comparação estrutural]
-    E --> F[Segmentação das regiões divergentes]
-    F --> G[Filtragem de falsos positivos]
-    G --> H[Resultado: regiões candidatas a dano]
+    A[Imagem da lataria] --> B[Pré-processamento]
+    B --> C[Filtro de bordas]
+    C --> D[Segmentação]
+    D --> E[Destaque do dano]
 ```
 
-Alternativas consideradas para a etapa de alinhamento:
+Alternativas consideradas para pré-processamento e filtro de bordas:
 
 ```mermaid
 flowchart TD
-    D[Alinhamento] --> D1[ORB + homografia]
-    D[Alinhamento] --> D2[SIFT + homografia]
-    D[Alinhamento] --> D3[Registro por correlação de fase]
-    D1 --> X[Comparar resultados]
-    D2 --> X
-    D3 --> X
+    B[Pré-processamento] --> B1[Escala de cinza]
+    B[Pré-processamento] --> B2[Espaço HSV]
+    B1 --> C[Filtro de bordas]
+    B2 --> C
+    C --> C1[Canny]
+    C --> C2[Sobel]
+    C1 --> D[Segmentação]
+    C2 --> D
 ```
 
 Cada etapa, finalidade, técnica considerada, entrada/saída e dúvidas em
@@ -84,26 +106,25 @@ aberto:
 
 | Etapa | Finalidade | Técnica considerada | Entrada | Saída | Dúvidas |
 |---|---|---|---|---|---|
-| Pré-processamento | Padronizar imagens para comparação | Redimensionamento, correção de iluminação/cor | 2 imagens brutas | 2 imagens normalizadas | Qual normalização de cor é mais robusta a luz natural variável? |
-| Alinhamento | Compensar diferenças de ângulo/posição | ORB/SIFT + homografia | 2 imagens normalizadas | 2 imagens alinhadas | ORB é suficiente ou será necessário SIFT (mais custoso)? |
-| Comparação estrutural | Localizar divergências | Diferença absoluta, SSIM | 2 imagens alinhadas | Mapa de diferenças | SSIM em qual espaço de cor (RGB, HSV, Lab)? |
-| Segmentação | Isolar regiões candidatas | Limiarização + morfologia (abertura/fechamento) | Mapa de diferenças | Regiões segmentadas | Qual limiar generaliza bem entre diferentes condições de luz? |
-| Filtragem | Remover falsos positivos | Filtro por área/forma/textura da região | Regiões segmentadas | Regiões candidatas a dano | Como distinguir sombra/reflexo de dano real de forma robusta? |
+| Pré-processamento | Padronizar imagem e realçar informação relevante | Redimensionamento, conversão para escala de cinza e HSV | 1 imagem bruta | Imagem normalizada (cinza + HSV) | HSV isola bem sombra/brilho de amassado em fotos com iluminação variada? |
+| Filtro de bordas | Isolar padrões lineares de arranhões/trincas | Canny, Sobel | Imagem normalizada | Mapa de bordas | Canny é suficiente ou Sobel captura melhor bordas sutis em lataria escura? |
+| Segmentação | Isolar regiões candidatas a partir das bordas | Limiarização + morfologia (abertura/fechamento) | Mapa de bordas | Regiões segmentadas | Qual limiar generaliza entre diferentes cores de carro e condições de luz? |
+| Destaque do dano | Localizar e classificar inicialmente o padrão | Bounding box + regras heurísticas (forma/orientação da região) | Regiões segmentadas | Imagem com bounding boxes + rótulo inicial | Que regras distinguem de forma confiável arranhão x amassado x sujeira/reflexo? |
 
 ## 5. Imagens e dados
 
-- **Origem 1 — CarDD (Car Damage Detection Dataset):** dataset público com
-  4.000 imagens de alta resolução e mais de 9.000 instâncias anotadas de
-  seis tipos de dano (risco, amassado, trinca, vidro quebrado, pneu
-  furado, farol quebrado). Disponível em https://cardd-ustc.github.io,
-  mediante aceite dos termos de licença do Flickr/Shutterstock (as imagens
-  não são redistribuídas diretamente pelo grupo — instruções de obtenção
-  serão adicionadas aqui).
-- **Origem 2 — Fotos próprias do grupo:** pares antes/depois do mesmo
-  veículo, capturados pelos integrantes, com dano simulado de forma
-  reversível (ex.: adesivo, marcador removível) para validar a etapa de
-  comparação estrutural. Formato, resolução e condições de captura serão
-  documentados conforme as fotos forem adicionadas em `images/input/`.
+- **Origem 1 — Conjunto inicial (M1):** 20 a 50 imagens de veículos com
+  avarias (arranhões, amassados), selecionadas em datasets públicos no
+  Kaggle e/ou Roboflow. Fonte exata, licença e link de cada dataset
+  utilizado serão registrados aqui conforme as imagens forem selecionadas
+  e adicionadas em `images/input/`.
+- **Origem 2 — CarDD (Car Damage Detection Dataset):** dataset público mais
+  amplo (4.000 imagens de alta resolução, mais de 9.000 instâncias anotadas
+  de seis tipos de dano — risco, amassado, trinca, vidro quebrado, pneu
+  furado, farol quebrado), candidato para ampliar o conjunto de dados em
+  M2/M3. Disponível em https://cardd-ustc.github.io, mediante aceite dos
+  termos de licença do Flickr/Shutterstock (as imagens não são
+  redistribuídas diretamente neste repositório).
 
 *(Quantidade exata, condições de aquisição e restrições de uso serão
 detalhadas aqui conforme o levantamento avançar.)*
@@ -111,17 +132,17 @@ detalhadas aqui conforme o levantamento avançar.)*
 ## 6. Arquitetura preliminar
 
 Ver pipeline na seção 4. A organização do código seguirá:
-- `src/`: módulos de pré-processamento, alinhamento, comparação e
-  segmentação.
+- `src/`: módulos de pré-processamento, filtro de bordas, segmentação e
+  destaque/classificação inicial do dano.
 - `notebooks/`: experimentos exploratórios documentando decisões técnicas.
 - `images/input/` e `images/results/`: dados de entrada e saídas geradas.
 
 ## 7. Estudo inicial de viabilidade
 
-*(Em andamento — primeiro experimento: alinhamento com ORB + homografia
-entre um par de imagens do mesmo veículo, seguido de diferença absoluta.
-Resultados e imagens de exemplo serão adicionados aqui e em
-`images/results/`.)*
+*(Em andamento — primeiro experimento: carregar imagens de latarias
+danificadas, converter para escala de cinza e para o espaço HSV, aplicar
+detecção de bordas (Canny/Sobel) para tentar isolar arranhões, e salvar os
+resultados visuais em `images/results/`.)*
 
 ## 8. Referências
 
