@@ -174,7 +174,7 @@ e em `results/exemplo/`: `figuras/IMG_5498.png` (painel com as 8 etapas),
 ## 12. Vídeos
 
 - M1: <https://youtu.be/IxA_tRpA2tM>
-- M2: *(link a adicionar)*
+- M2: <https://youtu.be/tvHNU4oYpIA>
 
 ## 13. Documentação
 
