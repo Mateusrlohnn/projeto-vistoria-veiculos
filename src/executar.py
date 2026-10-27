@@ -26,11 +26,13 @@ from .pipeline import processar
 from .visualizacao import salvar_painel
 
 
-def ler_split(pasta, conjunto):
+def ler_split(arq, conjunto):
     """IDs do conjunto pedido segundo `split.csv` (gerado por scripts/preparar_dados.py)."""
-    arq = Path(pasta) / "split.csv"
-    if conjunto == "todos" or not arq.exists():
+    arq = Path(arq)
+    if conjunto == "todos":
         return None
+    if not arq.exists():
+        raise SystemExit(f"{arq} nao encontrado; rode scripts/preparar_dados.py ou use --conjunto todos")
     with open(arq, encoding="utf-8") as f:
         return {l["id"] for l in csv.DictReader(f) if l["conjunto"] == conjunto}
 
@@ -39,13 +41,13 @@ def redimensionar_mascara(m, shape):
     return cv2.resize(m, (shape[1], shape[0]), interpolation=cv2.INTER_NEAREST)
 
 
-def executar(cfg, dados, conjunto, saida, n_figuras=0, categoria=None):
+def executar(cfg, dados, conjunto, saida, n_figuras=0, categoria=None, split="data/split.csv"):
     saida = Path(saida)
     (saida / "mascaras").mkdir(parents=True, exist_ok=True)
     if n_figuras:
         (saida / "figuras").mkdir(exist_ok=True)
 
-    ids = ler_split(dados, conjunto)
+    ids = ler_split(split, conjunto)
     amostras = [a for a in carregar(dados, categoria) if ids is None or a.id in ids]
     if not amostras:
         raise SystemExit(f"Nenhuma imagem para o conjunto '{conjunto}' em {dados}")
@@ -93,11 +95,12 @@ def main():
     p.add_argument("--saida", required=True)
     p.add_argument("--figuras", type=int, default=0, help="quantas imagens salvar como painel")
     p.add_argument("--categoria", default=None, help="filtra categoria COCO pelo nome (ex.: scratch)")
+    p.add_argument("--split", default="data/split.csv", help="CSV id,conjunto")
     a = p.parse_args()
 
     with open(a.config, encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
-    resumo, _ = executar(cfg, a.dados, a.conjunto, a.saida, a.figuras, a.categoria)
+    resumo, _ = executar(cfg, a.dados, a.conjunto, a.saida, a.figuras, a.categoria, a.split)
     print(json.dumps(resumo, indent=2, ensure_ascii=False))
 
 
