@@ -1,0 +1,29 @@
+# Gerado por scripts/ajustar_parametros.py a partir de configs/B_proposto.yaml; escolhido por F1 no conjunto de AJUSTE (13 imagens).
+nome: B_ajustado
+lado_max: 640
+blur_ksize: 3
+clahe: true
+metodo: tophat
+tophat_kernel: 9
+limiar: p98
+reflexo:
+  v_min: 230
+  s_max: 40
+  dilatar: 7
+  remover_antes: true
+morfologia:
+- op: abrir
+  kernel: 2
+  iter: 1
+  forma: quadrado
+- op: fechar
+  kernel: 5
+  iter: 1
+  forma: elipse
+filtros:
+  area_min: 15
+  area_max_frac: 0.05
+  alongamento_min: 2.5
+  frac_reflexo_max: 0.3
+  textura_entorno_max: 20
+  juncao_comp_frac: 0.15
