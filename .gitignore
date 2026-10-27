@@ -21,3 +21,9 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+
+# dataset de terceiros (nao versionar) e saidas brutas
+data/raw/
+data/car_scratch/
+__pycache__/
+.pytest_cache/
