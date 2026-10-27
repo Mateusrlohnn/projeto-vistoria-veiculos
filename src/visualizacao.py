@@ -1,10 +1,7 @@
 """Paineis de saidas intermediarias para relatorio e video."""
-import matplotlib
-
-matplotlib.use("Agg")
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.figure import Figure  # sem pyplot: nao altera o backend do notebook
 from skimage.color import label2rgb
 
 
@@ -34,7 +31,8 @@ def salvar_painel(r, ref, met, caminho, titulo=""):
         (sobrepor(r["img"], r["predicao"], ref),
          f"8. vs referencia  IoU={met['iou']:.2f} FP={met['fp']}"),
     ]
-    fig, eixos = plt.subplots(2, 4, figsize=(20, 9))
+    fig = Figure(figsize=(20, 9))
+    eixos = fig.subplots(2, 4)
     for ax, (im, t) in zip(eixos.ravel(), paineis):
         ax.imshow(im, cmap=None if im.ndim == 3 else "gray")
         ax.set_title(t, fontsize=11)
@@ -42,4 +40,3 @@ def salvar_painel(r, ref, met, caminho, titulo=""):
     fig.suptitle(f"{titulo} - {caminho.stem}", fontsize=13)
     fig.tight_layout()
     fig.savefig(caminho, dpi=90)
-    plt.close(fig)
