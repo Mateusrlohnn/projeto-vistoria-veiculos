@@ -1,5 +1,9 @@
-opencv-python
-scikit-image
-numpy
-matplotlib
+# Versoes usadas nos experimentos da M2 (Python 3.14, Windows 10)
+opencv-python==5.0.0.93
+scikit-image==0.26.0
+numpy==2.4.4
+matplotlib==3.10.9
+PyYAML==6.0.3
+# notebook e testes
 jupyter
+pytest==9.0.3

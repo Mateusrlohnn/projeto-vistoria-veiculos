@@ -1,0 +1,54 @@
+{
+  "config": {
+    "nome": "B_ajustado",
+    "lado_max": 640,
+    "blur_ksize": 3,
+    "clahe": true,
+    "metodo": "tophat",
+    "tophat_kernel": 9,
+    "limiar": "p98",
+    "reflexo": {
+      "v_min": 230,
+      "s_max": 40,
+      "dilatar": 7,
+      "remover_antes": true
+    },
+    "morfologia": [
+      {
+        "op": "abrir",
+        "kernel": 2,
+        "iter": 1,
+        "forma": "quadrado"
+      },
+      {
+        "op": "fechar",
+        "kernel": 5,
+        "iter": 1,
+        "forma": "elipse"
+      }
+    ],
+    "filtros": {
+      "area_min": 15,
+      "area_max_frac": 0.05,
+      "alongamento_min": 2.5,
+      "frac_reflexo_max": 0.3,
+      "textura_entorno_max": 20,
+      "juncao_comp_frac": 0.15
+    }
+  },
+  "conjunto": "teste",
+  "resumo": {
+    "imagens": 54,
+    "iou_medio": 0.017033850338765713,
+    "dice_medio": 0.027121578385978833,
+    "instancias_ref": 743,
+    "detectadas": 22,
+    "regioes_preditas": 100,
+    "vp": 17,
+    "fp": 83,
+    "fp_por_imagem": 1.537037037037037,
+    "precisao": 0.17,
+    "recall": 0.029609690444145357,
+    "f1": 0.05043489987188996
+  }
+}

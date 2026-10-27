@@ -1,0 +1,37 @@
+{
+  "config": {
+    "nome": "A_baseline_m1",
+    "lado_max": 640,
+    "blur_ksize": 5,
+    "clahe": false,
+    "metodo": "canny",
+    "canny_low": 50,
+    "canny_high": 150,
+    "morfologia": [
+      {
+        "op": "dilatar",
+        "kernel": 5,
+        "iter": 2,
+        "forma": "quadrado"
+      }
+    ],
+    "filtros": {
+      "area_min": 150
+    }
+  },
+  "conjunto": "teste",
+  "resumo": {
+    "imagens": 54,
+    "iou_medio": 0.011495655171268333,
+    "dice_medio": 0.021783966599584457,
+    "instancias_ref": 743,
+    "detectadas": 213,
+    "regioes_preditas": 494,
+    "vp": 35,
+    "fp": 459,
+    "fp_por_imagem": 8.5,
+    "precisao": 0.0708502024291498,
+    "recall": 0.28667563930013457,
+    "f1": 0.11361991053670357
+  }
+}

@@ -1,0 +1,22 @@
+# Configuracao B - proposta da M2.
+# Valores iniciais; ajustados SOMENTE no conjunto de ajuste (ver docs/relatorio_m2.md).
+nome: B_proposto
+lado_max: 640
+blur_ksize: 3
+clahe: true               # compensa iluminacao desigual na lataria
+metodo: tophat            # realce de estruturas finas (top-hat + black-hat)
+tophat_kernel: 15         # px; estruturas mais largas que isso (reflexos largos, frisos) sao suprimidas
+limiar: otsu
+reflexo:                  # mascara de reflexo especular no HSV
+  v_min: 230
+  s_max: 40
+  dilatar: 7
+  remover_antes: true     # zera pixels de reflexo antes da morfologia
+morfologia:
+  - {op: abrir, kernel: 2, iter: 1, forma: quadrado}   # remove pontos isolados (textura/ruido)
+  - {op: fechar, kernel: 5, iter: 1, forma: elipse}    # reconecta trechos de um mesmo risco
+filtros:
+  area_min: 40            # px^2
+  area_max_frac: 0.05     # regiao > 5% da imagem nao e risco fino
+  alongamento_min: 3.0    # eixo maior / eixo menor: riscos sao alongados
+  frac_reflexo_max: 0.3

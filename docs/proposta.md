@@ -1,150 +1,145 @@
-# Proposta Técnica — Vistoria Automática de Veículos (Detecção de Avarias na Lataria)
+# Proposta Técnica — Vistoria Automática de Veículos (Detecção de Arranhões na Lataria)
+
+> **Revisão M2 (27/10/2026).** Escopo reduzido a arranhões em fotos
+> próximas da lataria; dados substituídos por um dataset CC BY 4.0 com
+> máscaras de referência; critérios de sucesso e métricas definidos. A
+> versão da M1 está no commit `3f42cb6`. Resposta item a item à devolutiva:
+> [`relatorio_m2.md`](relatorio_m2.md), seção 2.
 
 ## 1. Problema
 
 Locadoras de veículos precisam verificar, no momento da devolução do carro,
-se ele retornou com alguma avaria (risco, amassado, trinca). Essa
-verificação é feita hoje majoritariamente de forma manual: um funcionário
-inspeciona visualmente a lataria do veículo.
+se ele retornou com alguma avaria. Essa verificação é feita hoje
+majoritariamente de forma manual, o que é lento e sujeito a erro.
 
-A estratégia inicial cogitada para este projeto era comparar pixel a pixel
-duas fotos do mesmo veículo (antes e depois), alinhando-as (ORB/SIFT) e
-calculando a diferença estrutural entre elas. Essa abordagem se mostrou
-frágil como ponto de partida: pequenas variações de ângulo, distância e
-iluminação entre as duas capturas exigem um alinhamento muito preciso para
-não gerar falsos positivos, o que é uma etapa complexa por si só.
+O projeto investiga se técnicas clássicas de PDI conseguem **localizar
+arranhões em uma foto próxima de um painel da lataria**, sem foto anterior
+de referência. A decisão depende de identificar, dentro de uma única
+imagem, regiões finas e alongadas cujo contraste, forma e vizinhança são
+compatíveis com arranhão — e de distingui-las de estruturas parecidas:
+reflexos, vãos entre peças, sujeira e texturas de pneu/asfalto.
 
-A estratégia adotada a partir de agora foca no **reconhecimento e
-segmentação direta de padrões de avaria na lataria do veículo**, a partir de
-uma única fotografia tirada no momento da inspeção, sem depender de um
-alinhamento fino entre duas capturas. Arranhões, amassados e trincas
-produzem padrões visuais característicos (bordas finas e alongadas,
-variações abruptas de brilho/sombra, descontinuidades de textura) que podem
-ser detectados diretamente com técnicas clássicas de PDI (filtros de borda,
-segmentação por cor/textura), sem exigir uma imagem de referência anterior.
+**Escopo (M2):**
+- um tipo de dano: **arranhão** (riscos na pintura/verniz);
+- enquadramento: **close-up de um painel**, a cerca de 0,3–1 m;
+- fotos ao ar livre, carros majoritariamente claros (prata, cinza, branco).
 
-Este problema envolve processamento e análise de imagens porque a decisão
-depende de identificar, dentro de uma única imagem, regiões cujos padrões
-de borda, textura e variação de brilho são compatíveis com avaria — uma
-tarefa de detecção de bordas, segmentação de regiões e classificação
-inicial do padrão encontrado.
+Amassados e trincas, presentes na proposta da M1, ficam fora do escopo:
+amassado quase não produz borda e exigiria outra abordagem (sombreamento,
+estéreo ou antes/depois).
 
-Situação inicial: uma foto do veículo (ou de parte da lataria) tirada no
-momento da inspeção de devolução.
+**Situação inicial:** uma foto próxima de um painel no momento da inspeção.
 
-Informação a ser produzida a partir da imagem: (a) localização das regiões
-com padrão visual compatível com avaria (bounding box); (b) uma
-classificação inicial heurística do padrão (ex.: "borda linear destacada =
-possível arranhão"); (c) *(meta futura, M2/M3)* comparação opcional com uma
-foto de referência da retirada do veículo, quando disponível, para reduzir
-falsos positivos.
+**Informação produzida:** máscara binária das regiões compatíveis com
+arranhão e uma tabela de descritores por região (área, alongamento,
+contraste, textura do entorno, cor).
 
 ## 2. Contexto de aplicação
 
-O sistema seria utilizado por locadoras de veículos no processo de
-devolução, como apoio à vistoria feita pelo funcionário — não como
-substituto do julgamento humano, mas como uma ferramenta que destaca
-regiões suspeitas para revisão. O mesmo princípio se aplica a empresas de
-gestão de frotas que fazem checagens periódicas dos veículos.
+Apoio à vistoria de devolução em locadoras e à checagem periódica de
+frotas: o sistema destaca regiões suspeitas para revisão do funcionário,
+sem substituir o julgamento humano. Por isso, nesta fase, **reduzir
+alarmes falsos** é tão importante quanto encontrar arranhões: um sistema
+que marca tudo não ajuda o vistoriador.
 
-## 3. Objetivo
+## 3. Objetivos e critérios de sucesso
 
-**Objetivo geral:** dada uma foto do veículo (ou de parte da lataria) no
-momento da inspeção, produzir um mapa das regiões com padrão visual
-compatível com avaria, indicando sua localização (bounding box) e uma
-classificação inicial do padrão encontrado.
+**Objetivo geral:** dada uma foto próxima da lataria, produzir a máscara
+das regiões compatíveis com arranhão e a descrição de cada região.
 
 **Objetivos específicos:**
-- Pré-processar a imagem (padronizar tamanho, converter para escala de
-  cinza e para o espaço de cor HSV).
-- Aplicar filtros de detecção de bordas (Canny/Sobel) para isolar padrões
-  compatíveis com arranhões e trincas.
-- Segmentar as regiões candidatas a partir das bordas e de variações de
-  brilho/sombra típicas de amassados.
-- Atribuir uma classificação inicial heurística ao padrão encontrado (ex.:
-  borda linear e fina → possível arranhão; região de contraste de
-  brilho/sombra → possível amassado).
-- *(Meta para M2/M3)* Treinar um classificador supervisionado para os
-  tipos de dano e, opcionalmente, comparar com foto de referência da
-  retirada do veículo.
+1. Pipeline executável: realce de estruturas finas → segmentação →
+   morfologia → componentes conexos → descritores → regra de decisão.
+2. Tratamento explícito dos negativos difíceis: reflexos e junções.
+3. Comparação controlada entre o pipeline da M1 (A) e o da M2 (B) em um
+   conjunto de teste separado.
+4. *(M3)* Classificador supervisionado sobre os descritores e experimento
+   antes/depois com captura controlada.
 
-## 4. Entrada e saída esperadas
+**Critérios de sucesso e métricas** (detalhes em `relatorio_m2.md` §3.6):
+- indicadores: precisão, recall e F1 por região (tolerância de 3 px),
+  IoU/Dice por pixel e falsos positivos por imagem;
+- M2: B reduz FP/imagem em relação a A sem reduzir o F1;
+  as regras de reflexo/junção não removem arranhões reais;
+- M3: F1 por região acima do baseline A no mesmo conjunto de teste.
 
-**Entrada:** foto do veículo (ou de parte da lataria) no momento da
-inspeção.
+## 4. Entrada, saída e pipeline
 
-**Saída:** a imagem processada apontando o local exato do dano (bounding
-box) + uma classificação inicial (ex.: "borda linear destacada = possível
-arranhão").
+**Entrada:** foto colorida de um painel (qualquer resolução; o pipeline
+reduz para 640 px no maior lado).
 
-Pipeline conceitual:
+**Saída:** máscara binária (PNG), CSV com os descritores de todas as
+regiões candidatas (aprovadas ou não, com o motivo) e painel com as
+saídas intermediárias.
 
 ```mermaid
 flowchart LR
-    A[Imagem da lataria] --> B[Pré-processamento]
-    B --> C[Filtro de bordas]
-    C --> D[Segmentação]
-    D --> E[Destaque do dano]
+    A[Foto] --> B[Redimensiona + CLAHE + Gaussiano]
+    B --> C[Top-hat + black-hat\nlimiar por percentil]
+    A --> R[Máscara de reflexo HSV]
+    C --> D[Remove reflexo]
+    R --> D
+    D --> E[Abertura + fechamento]
+    E --> F[Componentes conexos]
+    F --> G[Descritores]
+    G --> H[Regra de decisão]
+    H --> I[Máscara + CSV]
 ```
 
-Alternativas consideradas para pré-processamento e filtro de bordas:
+| Etapa | Finalidade | Técnica | Entrada | Saída |
+|---|---|---|---|---|
+| Pré-processamento | padronizar escala e contraste | redimensionamento, CLAHE, Gaussiano | foto | cinza suavizado + HSV |
+| Realce e segmentação | isolar estruturas mais finas que o elemento estruturante | top-hat + black-hat, limiar por percentil | cinza | máscara binária |
+| Reflexo | descartar reflexo especular | limiares em V e S (HSV) | HSV | máscara de reflexo |
+| Morfologia | remover ruído e reconectar trechos | abertura, fechamento | máscara | máscara limpa |
+| Componentes | separar regiões | rotulação (vizinhança 8) | máscara | regiões rotuladas |
+| Representação/descrição | caracterizar cada região | forma, intensidade, textura do entorno, cor | regiões + imagem | tabela de descritores |
+| Decisão | transformar região em "arranhão" | regra com limiares por descritor | descritores | máscara final |
 
-```mermaid
-flowchart TD
-    B[Pré-processamento] --> B1[Escala de cinza]
-    B[Pré-processamento] --> B2[Espaço HSV]
-    B1 --> C[Filtro de bordas]
-    B2 --> C
-    C --> C1[Canny]
-    C --> C2[Sobel]
-    C1 --> D[Segmentação]
-    C2 --> D
-```
-
-Cada etapa, finalidade, técnica considerada, entrada/saída e dúvidas em
-aberto:
-
-| Etapa | Finalidade | Técnica considerada | Entrada | Saída | Dúvidas |
-|---|---|---|---|---|---|
-| Pré-processamento | Padronizar imagem e realçar informação relevante | Redimensionamento, conversão para escala de cinza e HSV | 1 imagem bruta | Imagem normalizada (cinza + HSV) | HSV isola bem sombra/brilho de amassado em fotos com iluminação variada? |
-| Filtro de bordas | Isolar padrões lineares de arranhões/trincas | Canny, Sobel | Imagem normalizada | Mapa de bordas | Canny é suficiente ou Sobel captura melhor bordas sutis em lataria escura? |
-| Segmentação | Isolar regiões candidatas a partir das bordas | Limiarização + morfologia (abertura/fechamento) | Mapa de bordas | Regiões segmentadas | Qual limiar generaliza entre diferentes cores de carro e condições de luz? |
-| Destaque do dano | Localizar e classificar inicialmente o padrão | Bounding box + regras heurísticas (forma/orientação da região) | Regiões segmentadas | Imagem com bounding boxes + rótulo inicial | Que regras distinguem de forma confiável arranhão x amassado x sujeira/reflexo? |
+A configuração A (baseline da M1: Canny + dilatação + área mínima) é
+mantida no mesmo código para comparação. Parâmetros e justificativas em
+`relatorio_m2.md` §4–5.
 
 ## 5. Imagens e dados
 
-- **Origem 1 — Conjunto inicial (M1):** 20 a 50 imagens de veículos com
-  avarias (arranhões, amassados), coletadas manualmente via pesquisa no
-  Google Imagens, para uso exclusivamente educacional neste projeto (sem
-  fins comerciais e sem redistribuição fora deste contexto acadêmico) —
-  adicionadas em `images/input/`.
-- **Origem 2 — CarDD (Car Damage Detection Dataset):** dataset público mais
-  amplo (4.000 imagens de alta resolução, mais de 9.000 instâncias anotadas
-  de seis tipos de dano — risco, amassado, trinca, vidro quebrado, pneu
-  furado, farol quebrado), candidato para ampliar o conjunto de dados em
-  M2/M3. Disponível em https://cardd-ustc.github.io, mediante aceite dos
-  termos de licença do Flickr/Shutterstock (as imagens não são
-  redistribuídas diretamente neste repositório).
+- **Usado na M2:** "Car scratch" v10, PRISMAUTO, Roboflow Universe,
+  **CC BY 4.0** —
+  <https://universe.roboflow.com/prismauto/car-scratch-pizj9-uu3hr>.
+  Subconjunto de **67 fotos** `IMG_5481`–`IMG_5667` (mesma câmera,
+  close-ups), com **921 polígonos de arranhão** feitos pelo publicador.
+  Divisão: 13 imagens de ajuste e 54 de teste, pela ordem de captura.
+  O dataset **não é versionado**; obtenção e preparo em
+  `relatorio_m2.md` §3.1 e `scripts/preparar_dados.py`.
+- **Descartado:** as 79 imagens restantes do export (origens CarDD, Adobe
+  Stock, WhatsApp e desconhecidas) e as imagens do Google Imagens da M1
+  (sem licença; removidas do repositório).
+- **CarDD:** citado como alternativa; requer formulário de licença e não
+  foi usado.
+- **M3:** fotos próprias pareadas (antes/depois) com autoria registrada.
 
-*(Quantidade exata, condições de aquisição e restrições de uso serão
-detalhadas aqui conforme o levantamento avançar.)*
+Catálogo por imagem (brilho, saturação, reflexo, número e área dos
+arranhões, conjunto): `data/catalogo.csv`.
 
-## 6. Arquitetura preliminar
+## 6. Arquitetura
 
-Ver pipeline na seção 4. A organização do código seguirá:
-- `src/`: módulos de pré-processamento, filtro de bordas, segmentação e
-  destaque/classificação inicial do dano.
-- `notebooks/`: experimentos exploratórios documentando decisões técnicas.
-- `images/input/` e `images/results/`: dados de entrada e saídas geradas.
+- `src/`: pipeline (`pipeline.py`), descritores (`descritores.py`),
+  leitura de dados (`data.py`), métricas (`avaliacao.py`), CLI
+  (`executar.py`) e painéis (`visualizacao.py`).
+- `configs/`: configurações A e B em YAML.
+- `scripts/`: preparo dos dados, busca em grade e análise.
+- `results/`: saídas versionadas dos experimentos.
+- `notebooks/`: demonstração (`02_pipeline_m2.ipynb`) e experimento da M1.
+- `tests/`: testes com imagens sintéticas.
 
-## 7. Estudo inicial de viabilidade
+## 7. Viabilidade (estado na M2)
 
-*(Em andamento — primeiro experimento: carregar imagens de latarias
-danificadas, converter para escala de cinza e para o espaço HSV, aplicar
-detecção de bordas (Canny/Sobel) para tentar isolar arranhões, e salvar os
-resultados visuais em `images/results/`.)*
+O pipeline executa de ponta a ponta. No teste, a configuração B reduziu os
+falsos positivos de 8,5 para 1,5 por imagem e dobrou a precisão em relação
+à M1, mas o recall caiu de 0,29 para 0,03 (`relatorio_m2.md` §6). A
+detecção direta é viável como **filtro de alta precisão**, não ainda como
+detector completo. As causas identificadas (fragmentação dos traços,
+reflexos de ambiente, marcas de poucos pixels) orientam a M3.
 
 ## 8. Referências
 
-*(A completar com literatura técnica, documentação de bibliotecas e
-trabalhos relacionados consultados.)*
+Ver `relatorio_m2.md`, seção 11.
