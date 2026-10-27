@@ -1,0 +1,14 @@
+# Configuracao A - reproduz o pipeline da M1 (notebook 01):
+# cinza -> Gaussian 5x5 -> Canny(50,150) -> dilatacao 5x5 x2 -> componentes com area >= 150 px.
+# Unica diferenca: imagens redimensionadas para maior lado 640 px (mesma escala da config B).
+nome: A_baseline_m1
+lado_max: 640
+blur_ksize: 5
+clahe: false
+metodo: canny
+canny_low: 50
+canny_high: 150
+morfologia:
+  - {op: dilatar, kernel: 5, iter: 2, forma: quadrado}
+filtros:
+  area_min: 150
