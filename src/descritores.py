@@ -15,7 +15,9 @@ Unidades: pixels da imagem redimensionada (maior lado = `lado_max`).
 | circularidade    | -       | 4*pi*area / perimetro^2 (1 = circulo) |
 | orientacao_graus | graus   | angulo do eixo maior em relacao ao eixo horizontal |
 | intensidade_media| 0-255   | media do nivel de cinza dentro da regiao |
+| comprimento_frac | -       | eixo_maior / diagonal da imagem |
 | contraste_local  | 0-255   | |media dentro - media do anel de 5 px ao redor| |
+| textura_entorno  | 0-255   | desvio-padrao do nivel de cinza no anel de 5 px ao redor |
 | saturacao_media  | 0-255   | media do canal S (HSV) dentro da regiao |
 | frac_reflexo     | -       | fracao dos pixels da regiao dentro da mascara de reflexo |
 | toca_borda       | bool    | bounding box encosta na borda da imagem |
@@ -45,6 +47,7 @@ def extrair_descritores(reg, cinza, hsv, reflexo, shape):
     rec = cinza[r0:r1, c0:c1]
     media_dentro = float(rec[local == 1].mean())
     media_anel = float(rec[anel == 1].mean()) if anel.any() else media_dentro
+    textura_anel = float(rec[anel == 1].std()) if anel.any() else 0.0
 
     return {
         "rotulo": int(reg.label),
@@ -59,7 +62,9 @@ def extrair_descritores(reg, cinza, hsv, reflexo, shape):
         "circularidade": round(4 * math.pi * area / perim ** 2, 3),
         "orientacao_graus": round(math.degrees(reg.orientation), 1),
         "intensidade_media": round(media_dentro, 1),
+        "comprimento_frac": round(eixo_maior / math.hypot(h, w), 3),
         "contraste_local": round(abs(media_dentro - media_anel), 1),
+        "textura_entorno": round(textura_anel, 1),
         "saturacao_media": round(float(hsv[..., 1][reg.coords[:, 0], reg.coords[:, 1]].mean()), 1),
         "frac_reflexo": round(float(reflexo[reg.coords[:, 0], reg.coords[:, 1]].mean()), 3),
         "toca_borda": bool(minr == 0 or minc == 0 or maxr == h or maxc == w),

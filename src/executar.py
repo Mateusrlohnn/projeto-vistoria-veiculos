@@ -20,7 +20,7 @@ import cv2
 import numpy as np
 import yaml
 
-from .avaliacao import avaliar_imagem, resumir
+from .avaliacao import avaliar_imagem, pureza_regioes, resumir
 from .data import carregar, ler_imagem
 from .pipeline import processar
 from .visualizacao import salvar_painel
@@ -41,14 +41,16 @@ def redimensionar_mascara(m, shape):
     return cv2.resize(m, (shape[1], shape[0]), interpolation=cv2.INTER_NEAREST)
 
 
-def executar(cfg, dados, conjunto, saida, n_figuras=0, categoria=None, split="data/split.csv"):
+def executar(cfg, dados, conjunto, saida, n_figuras=0, categoria=None, split="data/split.csv",
+             apenas=None):
     saida = Path(saida)
     (saida / "mascaras").mkdir(parents=True, exist_ok=True)
     if n_figuras:
         (saida / "figuras").mkdir(exist_ok=True)
 
     ids = ler_split(split, conjunto)
-    amostras = [a for a in carregar(dados, categoria) if ids is None or a.id in ids]
+    amostras = [a for a in carregar(dados, categoria)
+                if (ids is None or a.id in ids) and (not apenas or a.id in apenas)]
     if not amostras:
         raise SystemExit(f"Nenhuma imagem para o conjunto '{conjunto}' em {dados}")
 
@@ -60,14 +62,15 @@ def executar(cfg, dados, conjunto, saida, n_figuras=0, categoria=None, split="da
 
         met = avaliar_imagem(r["predicao"], insts)
         linhas.append({"id": a.id, **met})
+        ref = np.zeros(shape, np.uint8)
+        for m in insts:
+            ref |= m
+        pureza = pureza_regioes(r["rotulos"], ref)
         for d in r["descritores"]:
-            regioes.append({"id": a.id, **d})
+            regioes.append({"id": a.id, **d, "pureza_ref": round(pureza[d["rotulo"]], 3)})
 
         cv2.imwrite(str(saida / "mascaras" / f"{a.id}.png"), r["predicao"] * 255)
         if i < n_figuras:
-            ref = np.zeros(shape, np.uint8)
-            for m in insts:
-                ref |= m
             salvar_painel(r, ref, met, saida / "figuras" / f"{a.id}.png", titulo=cfg.get("nome", ""))
 
     _csv(saida / "metricas_por_imagem.csv", linhas)
@@ -96,11 +99,12 @@ def main():
     p.add_argument("--figuras", type=int, default=0, help="quantas imagens salvar como painel")
     p.add_argument("--categoria", default=None, help="filtra categoria COCO pelo nome (ex.: scratch)")
     p.add_argument("--split", default="data/split.csv", help="CSV id,conjunto")
+    p.add_argument("--ids", nargs="+", default=None, help="processa so estas imagens (ex.: IMG_5502)")
     a = p.parse_args()
 
     with open(a.config, encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
-    resumo, _ = executar(cfg, a.dados, a.conjunto, a.saida, a.figuras, a.categoria, a.split)
+    resumo, _ = executar(cfg, a.dados, a.conjunto, a.saida, a.figuras, a.categoria, a.split, a.ids)
     print(json.dumps(resumo, indent=2, ensure_ascii=False))
 
 

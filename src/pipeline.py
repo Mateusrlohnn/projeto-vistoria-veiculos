@@ -59,8 +59,13 @@ def realce_tophat(suave, cfg):
     bh = cv2.morphologyEx(suave, cv2.MORPH_BLACKHAT, se)
     th = cv2.morphologyEx(suave, cv2.MORPH_TOPHAT, se)
     resp = np.maximum(bh, th)
-    if cfg.get("limiar", "otsu") == "otsu":
+    limiar = cfg.get("limiar", "otsu")
+    if limiar == "otsu":
         _, binaria = cv2.threshold(resp, 0, 1, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    elif isinstance(limiar, str) and limiar.startswith("p"):
+        # percentil: mantem os (100 - p)% pixels de maior resposta. Otsu falha
+        # quando o histograma e quase todo fundo (arranhoes ocupam < 1% da imagem).
+        binaria = (resp > np.percentile(resp, float(limiar[1:]))).astype(np.uint8)
     else:
         binaria = (resp >= cfg["limiar"]).astype(np.uint8)
     return binaria, resp
@@ -112,6 +117,12 @@ def regiao_aprovada(d, f):
         return False, "compacta"
     if d["frac_reflexo"] > f.get("frac_reflexo_max", 1.01):
         return False, "reflexo"
+    if d["textura_entorno"] > f.get("textura_entorno_max", 256):
+        # pneu, roda, asfalto, grade: entorno texturizado; arranhao fica sobre pintura lisa
+        return False, "entorno texturizado"
+    if "juncao_comp_frac" in f and d["toca_borda"] and d["comprimento_frac"] > f["juncao_comp_frac"]:
+        # vaos entre portas/paineis atravessam a foto e encostam na borda
+        return False, "juncao de pecas"
     if "borda_imagem" in f and d["toca_borda"] and d["area_frac"] > f["borda_imagem"]:
         return False, "contorno da peca"
     return True, "arranhao"

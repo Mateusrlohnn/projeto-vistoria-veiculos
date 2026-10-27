@@ -55,6 +55,17 @@ def avaliar_imagem(pred, instancias, tolerancia_px=3, cobertura_min=0.3, pureza_
             "n_pred": n_pred, "vp": vp, "fp": n_pred - vp}
 
 
+def pureza_regioes(rotulos, ref, tolerancia_px=3):
+    """Fracao de cada regiao candidata que cai sobre a referencia dilatada.
+
+    Usada para analisar quais descritores separam regioes de arranhao real
+    (pureza alta) de falsos candidatos (pureza ~0).
+    """
+    ref_d = _dilatar(ref, tolerancia_px)
+    return {r.label: float(ref_d[r.coords[:, 0], r.coords[:, 1]].mean())
+            for r in measure.regionprops(rotulos)}
+
+
 def resumir(linhas):
     """Agrega metricas por imagem em indicadores do conjunto."""
     n_ref = sum(l["n_ref"] for l in linhas)
